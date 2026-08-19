@@ -419,4 +419,94 @@ const tubularSegments = 120;
 const radialSegments = 16;
 const geometry = new THREE.TorusKnotGeometry(1.4, 0.42, tubularSegments, radialSegments, 2, 3);
 
-// Núcleo sólido oscuro para dar profundidad y ocultar líneas tra
+// Núcleo sólido oscuro para dar profundidad y ocultar líneas traraseras
+const solidMat = new THREE.MeshBasicMaterial({
+  color: 0x07111a,
+  polygonOffset: true,
+  polygonOffsetFactor: 1,
+  polygonOffsetUnits: 1
+});
+const solidMesh = new THREE.Mesh(geometry, solidMat);
+scene.add(solidMesh);
+
+// Shader personalizado para el flujo continuo de la malla sobre la superficie
+const wireShaderMat = new THREE.ShaderMaterial({
+  wireframe: true,
+  transparent: true,
+  uniforms: {
+    uTime: { value: 0 },
+    uSpeed: { value: 0.15 },
+    uColor: { value: new THREE.Color(0x6b8aa3) },
+    uOpacity: { value: 0.85 }
+  },
+  vertexShader: `
+    uniform float uTime;
+    uniform float uSpeed;
+    varying vec2 vUv;
+    void main() {
+      // Desplazamiento continuo en coordenadas UV a lo largo del tubo
+      vUv = uv + vec2(uTime * uSpeed, 0.0);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 uColor;
+    uniform float uOpacity;
+    void main() {
+      gl_FragColor = vec4(uColor, uOpacity);
+    }
+  `
+});
+
+const wireMesh = new THREE.Mesh(geometry, wireShaderMat);
+scene.add(wireMesh);
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+window.addEventListener('resize', onResize);
+
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  
+  // Rotación espacial suave
+  solidMesh.rotation.x = t * 0.14;
+  solidMesh.rotation.y = t * 0.20;
+  wireMesh.rotation.x  = t * 0.14;
+  wireMesh.rotation.y  = t * 0.20;
+  
+  // Actualización del avance de la malla
+  wireShaderMat.uniforms.uTime.value = t;
+  
+  renderer.render(scene, camera);
+}
+if (typeof THREE !== 'undefined') animate();
+
+
+// === UI & TRANSITIONS ===
+document.getElementById('btn-iniciar').addEventListener('click', () => {
+  const intro = document.getElementById('intro-view');
+  const catalog = document.getElementById('catalog-view');
+  const hintFloat = document.querySelector('.hud-hint-float');
+  
+  intro.style.opacity = '0';
+  intro.style.visibility = 'hidden';
+  if(hintFloat) hintFloat.style.display = 'none';
+  
+  document.body.classList.remove('locked');
+  document.body.classList.add('unlocked');
+  
+  catalog.classList.add('active');
+});
+
+// === FOOTER DATE ===
+document.getElementById('date').textContent = new Date().toLocaleDateString('es-CL', {day:'2-digit', month:'2-digit', year:'numeric'}).toUpperCase();
+
+})();
+</script>
+</body>
+</html>
